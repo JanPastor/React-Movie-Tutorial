@@ -1,5 +1,6 @@
 import MovieCard from "../../../components/MovieCard"
-import {useState} from "react" // This is called a hook and it allows us to use state in a functional component
+import {useState, useEffect} from "react" // This is called a hook and it allows us to use state in a functional component
+import { searchMovies, getPoplularMovies } from "../services/api";
 import "../css/Home.css"  // from pages to css
 
 {/*This home page will display a list of movies 
@@ -7,21 +8,43 @@ import "../css/Home.css"  // from pages to css
 */}
 
 function Home() {
-    const [searchQuery, setSearchQuery] = useState("");
+    const [searchQuery, setSearchQuery] = useState(""); // This is for storing the search query
+    const [movies, setMovies] = useState([]); // This is for storing the movies
+    const [error, setError] = useState(null); // This is for error handling
+    const [loading, setLoading] = useState(true);
+    
 
-    {/*This variable will hold a list of movie cards that will be displayed*/}
-    const movies = [
-        {id:1, title: "John Wick", release_date: "2014-10-24"},
-        {id:2, title: "The Matrix", release_date: "1999-03-31"},
-        {id:3, title: "The Dark Knight", release_date: "2008-07-18"},
-        {id:4, title: "The Lord of the Rings", release_date: "2001-12-19"},
-        {id:5, title: "Star Wars", release_date: "1977-05-25"}, 
-        {id:6, title: "The Avengers", release_date: "2012-04-25"},
-        {id:7, title: "The Silence of the Lambs", release_date: "1991-02-14"},
-    ] 
-    const handleSearch = (e) => {
+    useEffect(() => {
+        const loadPoplularMovies = async () => {
+            try {
+                const popularMovies = await getPoplularMovies();
+                setMovies(popularMovies);
+            } catch (error) {
+                setError("Failed to load popular movies...");
+                console.log(error);
+            }
+            finally {
+                setLoading(false);
+            }
+        };
+        loadPoplularMovies();
+    }, []) 
+
+    const handleSearch = async (e) => {
         e.preventDefault(); // prevents the button from update the page so that past search queries are not overwritten or lost (their state is retained)
-        alert(`You searched for ${searchQuery}`)
+        if (!searchQuery.trim()) return
+        if (loading) return
+        setLoading(true)
+        try {
+          const searchResults = await searchMovies(searchQuery);
+          setMovies(searchResults);
+          setError(null);
+        } catch (error) {
+            setError("Failed to search for movies...");
+            console.log(error);
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -36,13 +59,18 @@ function Home() {
             />
             <button type="submit" className = "search-button"> Search </button>
         </form>
-      <div className = "movie-grid">
-        {movies.map(
-            (movie) => (
-                <MovieCard movie={movie} key={movie.id} />
-            )
+       
+        {error && <div className="error-message">{error}</div>}
+
+        {loading ? (
+            <div className="loading">Loading...</div>
+        ) : (
+            <div className="movie-grid">
+                {movies.map((movie) => (
+                    <MovieCard movie={movie} key={movie.id} />
+                ))}
+            </div>
         )}
-      </div>
     </div>
   );
 }
